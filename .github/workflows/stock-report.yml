@@ -1,0 +1,51 @@
+name: A股持仓飞书自动简报
+
+on:
+  schedule:
+    - cron: "30 0 * * 1-5"
+    - cron: "30 9 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      report_type:
+        description: "选择要发送的报告类型"
+        required: true
+        default: "morning"
+        type: choice
+        options:
+          - morning
+          - evening
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 拉取仓库代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: python -m pip install -r requirements.txt
+
+      - name: 判断报告类型
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "REPORT_TYPE=${{ inputs.report_type }}" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.schedule }}" = "30 0 * * 1-5" ]; then
+            echo "REPORT_TYPE=morning" >> "$GITHUB_ENV"
+          else
+            echo "REPORT_TYPE=evening" >> "$GITHUB_ENV"
+          fi
+
+      - name: 生成并发送飞书简报
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+        run: python stock_report/send_report.py --type "$REPORT_TYPE"
