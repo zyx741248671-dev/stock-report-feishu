@@ -112,7 +112,7 @@ def build_prompt(report_type: str, config: dict) -> str:
 def generate_report(report_type: str) -> str:
     config = load_config()
     client = OpenAI(api_key=require_env("OPENAI_API_KEY"))
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1")
+    model = os.getenv("OPENAI_MODEL") or "gpt-4.1"
     prompt = build_prompt(report_type, config)
 
     response = client.responses.create(
