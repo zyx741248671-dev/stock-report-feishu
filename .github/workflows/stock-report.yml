@@ -14,6 +14,10 @@ on:
         options:
           - morning
           - evening
+      manual_text_b64:
+        description: "可选：直接发送的正文（Base64 编码）"
+        required: false
+        type: string
 
 jobs:
   send-report:
@@ -48,4 +52,5 @@ jobs:
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
           FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          MANUAL_REPORT_TEXT_B64: ${{ inputs.manual_text_b64 }}
         run: python stock_report/send_report.py --type "$REPORT_TYPE"

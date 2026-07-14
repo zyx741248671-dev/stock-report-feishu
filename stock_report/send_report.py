@@ -9,6 +9,7 @@ import time
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 from openai import OpenAI
@@ -136,15 +137,23 @@ def generate_report(report_type: str) -> str:
     return "\n".join(parts).strip()
 
 
+def load_manual_report() -> Optional[str]:
+    value = os.getenv("MANUAL_REPORT_TEXT_B64")
+    if not value:
+        return None
+    return base64.b64decode(value).decode("utf-8").strip()
+
+
 def feishu_sign(timestamp: str, secret: str) -> str:
     string_to_sign = f"{timestamp}\n{secret}"
     digest = hmac.new(string_to_sign.encode("utf-8"), b"", hashlib.sha256).digest()
     return base64.b64encode(digest).decode("utf-8")
 
 
-def send_feishu_text(text: str) -> None:
+def send_feishu_text(text: str, report_type: str) -> None:
     webhook = require_env("FEISHU_WEBHOOK")
     secret = require_env("FEISHU_SECRET")
+    label = "早盘简报" if report_type == "morning" else "收盘复盘"
 
     max_chars = 3200
     chunks = [text[i : i + max_chars] for i in range(0, len(text), max_chars)]
@@ -157,9 +166,9 @@ def send_feishu_text(text: str) -> None:
             "sign": feishu_sign(timestamp, secret),
             "msg_type": "text",
             "content": {
-                "text": f"【A股自动简报 {index}/{total}】\n{chunk}"
+                "text": f"【{label} {index}/{total}】\n{chunk}"
                 if total > 1
-                else f"【A股自动简报】\n{chunk}"
+                else f"【{label}】\n{chunk}"
             },
         }
         request = urllib.request.Request(
@@ -186,8 +195,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    report = generate_report(args.type)
-    send_feishu_text(report)
+    report = load_manual_report() or generate_report(args.type)
+    send_feishu_text(report, args.type)
     print("Report generated and sent to Feishu successfully.")
     return 0
 
